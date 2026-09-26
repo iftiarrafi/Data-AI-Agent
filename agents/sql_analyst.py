@@ -23,3 +23,7 @@ def curate_question(state:AgentSchema) -> AgentSchema :
     state.messages += [HumanMessage(content=f"{response.content}")]
     
     return state
+
+
+def prompt_query_context(state: AgentSchema) -> AgentSchema:
+    pass
