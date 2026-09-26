@@ -48,6 +48,21 @@ class DatabaseUtil:
             if cursor : cursor.close()
             if connection : connection.close()
         return schema_info_context
+    def execute_query(self , query):
+        try:
+            connection = self.connection
+            cursor = connection.cursor()
+            cursor.execute(query=query)
+            result = cursor.fetchall()
+            connection.commit()
+            
+            return str(result)
+        except Exception as e:
+            print(f"Error executing query: {e}")
+            return None
+        finally:
+            if cursor : cursor.close()
+            if connection : connection.close()
     
 db_config = {
     "host": os.getenv("DB_HOST", "localhost"),
