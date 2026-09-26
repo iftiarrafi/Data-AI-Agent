@@ -2,7 +2,7 @@ from pydantic import BaseModel , Field
 from typing import Annotated , Literal
 from operator import add
 
-class AgentState(BaseModel):
+class AgentSchema(BaseModel):
     messages: Annotated[list , add] = Field(...,description="List of messages to be processed by the agent")
     user_message : str = Field(..., description="The original question asked by the user")
     curated_ques: str = Field(..., description="Curated user question")
