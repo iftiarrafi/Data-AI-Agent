@@ -15,7 +15,19 @@ def curate_question(state:AgentSchema) -> AgentSchema :
     
     llm = pick_llm("low")
     
-    prompt = f"Curate the following question {user_question}"
+    prompt = f"""
+        Rewrite the user's question into a clear, precise question suitable for
+        generating a PostgreSQL query.
+
+        Rules:
+        - Preserve the user's original intent.
+        - Do not add information or assumptions that are not present.
+        - Do not answer the question.
+        - Return only the rewritten question.
+
+        User question:
+        {user_question}
+        """
     
     response = llm.invoke(prompt)
     
@@ -42,7 +54,7 @@ def prompt_query_context(state: AgentSchema) -> AgentSchema:
     schema_info = obj.schema_details("public")
     
     prompt = f"""
-    L analyst agent. Your task is to convert the user's natural language 
+    You are a SQL analyst agent. Your task is to convert the user's natural language 
     query into Postgres SQL query that can be executed on the database. You are provided 
     with the user's original query and the schema details of the database, including
     table names, column names, data types, and sample data for each table so that 
