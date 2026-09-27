@@ -60,9 +60,19 @@ def prompt_query_context(state: AgentSchema) -> AgentSchema:
     table names, column names, data types, and sample data for each table so that 
     you can understand the structure of the database and generate an accurate SQL query.
     Unless user explicitly asks for specific number of rows, always limit the output to 10 rows.
-    Note - Just generate the SQL query without any explanation or additional text because
-    this query will be executed directly on the database. So, the output should be SQL
-    ready to be executed without any modifications.  
+    
+    Return ONLY the raw SQL query.
+
+    Do NOT wrap the query in:
+    - ```sql
+    - ```
+    - Markdown
+    - quotes
+    - explanations
+    - comments
+
+    The first character of your response must be the beginning of the SQL query.
+    The last character must be the end of the SQL query.
     
     User's Original Query: {curate_question}
 
@@ -82,6 +92,8 @@ def generate_sql(state: AgentSchema) ->AgentSchema:
     llm = pick_llm("medium")
     
     result = llm.invoke(prompt).content
+    
+    result = result.replace("```sql", "").replace("```", "").strip()
     
     state.generated_sql_query=result
     
@@ -124,7 +136,7 @@ def is_safe_sql_edge(state: AgentSchema) ->AgentSchema:
 def execute_sql(state: AgentSchema) -> AgentSchema :
     
     sql_query = state.generated_sql_query
-    
+
     db_config = {
     "host": os.getenv("DB_HOST", "localhost"),
     "port": int(os.getenv("DB_PORT", 5432)),
@@ -135,6 +147,10 @@ def execute_sql(state: AgentSchema) -> AgentSchema :
     
     obj = DatabaseUtil(db_config=db_config)
     result = obj.execute_query(sql_query)
+    
+    print("SQL:", sql_query)
+    print("RESULT:", result)
+    print("RESULT TYPE:", type(result))
 
     state.sql_query_execution_result = result
     
