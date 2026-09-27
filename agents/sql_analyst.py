@@ -96,3 +96,71 @@ def is_safe_sql(state: AgentSchema) -> AgentSchema:
     state.comments = response['comments']
     
     return state
+
+
+def is_safe_sql_edge(state: AgentSchema) ->AgentSchema:
+    is_safe = state.is_safe
+    
+    if is_safe.lower() == "yes" :
+        return "execute_sql_edge"
+    else:
+        return "canceled_sql_edge"
+
+
+
+# Executing the SQL (safe)
+def execute_sql(state: AgentSchema) -> AgentSchema :
+    
+    sql_query = state.generated_sql_query
+    
+    db_config = {
+    "host": os.getenv("DB_HOST", "localhost"),
+    "port": int(os.getenv("DB_PORT", 5432)),
+    "database": os.getenv("DB_NAME", "data-agent"),
+    "user": os.getenv("DB_USER", "postgres"),
+    "password": os.getenv("DB_PASSWORD", ""),
+    }
+    
+    obj = DatabaseUtil(db_config=db_config)
+    result = obj.execute_query(sql_query)
+
+    state.sql_query_execution_result = result
+    
+    return state
+
+
+# Cancelling SQL Query operation
+
+def canceled_sql(state: AgentSchema)-> AgentSchema:
+    
+    comments = state.comments
+    
+    state.final_answer =f"The generated SQL query was deemed unsafe to execute. The reason provided by the judge is: {comments}. Therefore, the SQL query will not be executed."
+    state.messages = state.messages + [AIMessage(content=f"{state.final_answer}")]
+    
+    return state
+
+
+
+def represent_final_answer(state: AgentSchema)->AgentSchema:
+    
+    execution_result = state.sql_query_execution_result
+    curated_question = state.curated_ques
+    
+    prompt = f"""
+    You are an SQL analyst agent. Your task is to provide a final answer to the user based on the
+    execution result of the SQL query and the user's original question. The final answer should be
+    concise, clear, and directly address the user's query. Avoid including any SQL code or technical
+    details in the final answer. The final answer should be in a user-friendly format that is easy to
+    understand. If the execution result is empty or does not provide a clear answer to the user's question, explain this in the final answer. \n
+    Here is the execution result: {execution_result} \n
+    Here is the user's original question: {curated_question}
+    """
+    
+    llm = pick_llm("low")
+    response = llm.invoke(prompt).content
+    
+    state.final_answer = response
+    state.messages = state.messages + [AIMessage(content=f"{response}")]
+    
+    return state
