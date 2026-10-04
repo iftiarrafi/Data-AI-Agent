@@ -6,7 +6,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__) ,'..'))
 
 class ETLTools:
     
-    def __int__(self):
+    def __init__(self):
         pass
     
     def extract_load(self, url:str , output_folder:str, format:str):
@@ -46,20 +46,16 @@ class ETLTools:
             return f"Failed to extract the data: {e}"
         
     
-    def transform_load_context(self , file_path:str , output_folder:str , output_format: str):
+    def transform_load_context(self , file_path:str ):
         """
-        This tool transforms the data from the specified file and loads it into the
-        desired location (output_folder).
+        This tool transforms the data from the specified file 
 
         Args:
             file_path (str): The path to the file containing the data to be transformed.
-            output_folder (str): The folder where the transformed data will be saved.
-            output_format (str): The format in which to save the transformed data (csv, json, parquet).
+            
         Returns:
             str: A message indicating the success or failure of the operation.
         """
-        
-        file_extension = os.path.splitext(file_path)[1].lower()
         
         file_extension = os.path.splitext(file_path)[1].lower()
         if file_extension == ".csv":
@@ -75,10 +71,23 @@ class ETLTools:
         
         return top_3_rows
 
+    def execute_code(self , code:str):
+        """
+        This tool executes the provided code and returns the output.
 
-obj = ETLTools()
-obj.extract_load(url="https://pokeapi.co/api/v2/pokemon" ,output_folder="data/extracted" , format="csv")
-
-            
-            
-    
+        Args:
+            code (str): The code to be executed.
+        Returns:
+            str: The output of the executed code or an error message if execution fails.
+        """
+        try:
+            exec(code)
+            return "Code executed successfully\n"
+        except Exception as e:
+            return f"Failed to execute code: {e}"
+        
+        
+# if __name__ == "__main__":
+#     obj = ETLTools()
+#     path = "./data/extracted/extracted_data.csv"
+#     print(obj.transform_load_context(path))
