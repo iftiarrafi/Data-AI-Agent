@@ -1,1 +1,1 @@
-schema_name
+psycopg2
