@@ -1,18 +1,87 @@
-# SQL AI Agent
+#  Multi-Agent SQL Analyst & ETL Engine
 
-An automated workflow designed to safely convert natural language questions into SQL queries, validate them for execution safety, run queries, and format analytical responses.
+An intelligent, multi-agent architecture powered by **LangGraph**, **LangChain**, and **Groq LLMs**. The system routes user natural language queries between specialized sub-graphs to handle database querying (Text-to-SQL) and automated Data Engineering/ETL pipelines safely.
 
-## Workflow Architecture
+---
 
-<div align="center">
-  <img src="images/sql_analyst_graph.png" alt="SQL AI Agent Workflow Graph" width="350"/>
-</div>
+##  Key Features
 
-## Execution Steps
+- ** Smart Workflow Routing:** Automatically evaluates incoming requests using a structured router and dispatches them to either the SQL Analyst or ETL Agent graph.
+- ** Guardrailed Text-to-SQL Pipeline:**
+  - **Question Refinement:** Rephrases user prompts into clean, clear SQL requirements.
+  - **Dynamic Schema Inspection:** Automatically extracts tables, column definitions, data types, and sample rows from PostgreSQL schemas (`public`).
+  - **Security Judge Node:** Evaluates generated SQL queries against strict DDL/DML restrictions (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, etc.) before execution.
+  - **Result Synthesis:** Formats raw query execution tuples into friendly, executive summaries.
+- ** Autonomous ETL & Data Pipeline Engine:**
+  - **REST API Data Ingestion:** Extracts data from external API endpoints into structured `.csv`, `.json`, or `.parquet` formats.
+  - **Dynamic Code Generation & Execution:** Generates and runs Pandas transformation scripts in isolated scopes based on data context inspection.
 
-1. **`curate_question`**: Receives and processes the initial query input.
-2. **`prompt_query_context`**: Prepares the relevant database context and prompt structures.
-3. **`generate_sql`**: Translates the contextual prompt into a candidate SQL query.
-4. **`is_safe_sql`**: Validates query safety and routes down one of two conditional edges:
-   - **`canceled_sql_edge`** $\rightarrow$ **`canceled_sql`**: Safely terminates queries that fail security check.
-   - **`execute_sql_edge`** $\rightarrow$ **`execute_sql`**: Runs validated queries against the database and forwards the output to **`represent_final_answer`**.
+---
+
+##  System Architecture
+
+```
+                    ┌────────────────────────┐
+                    │   User Input Query     │
+                    └───────────┬────────────┘
+                                │
+                        ┌───────▼────────┐
+                        │  Router Node   │
+                        └───────┬────────┘
+                                │
+             ┌──────────────────┴──────────────────┐
+             │                                     │
+      [ Route: "sql" ]                      [ Route: "etl" ]
+             │                                     │
+    ┌────────▼─────────┐                  ┌────────▼────────┐
+    │ SQL Analyst Graph│                  │ ETL Analyst    │
+    └────────┬─────────┘                  │ Sub-Graph      │
+             │                            └────────┬────────┘
+  ┌──────────┼──────────┐                          │
+  │ Curate   │ Schema   │                  ┌───────▼────────┐
+  │ Query    │ Context  │                  │ LLM Tool-Call  │
+  └──────────┼──────────┘                  └───────┬────────┘
+             │                                     │
+  ┌──────────▼──────────┐                 ┌────────┴────────┐
+  │  SQL Generator      │                 │ API Extract /   │
+  └──────────┬──────────┘                 │ Pandas Code Exec│
+             │                            └─────────────────┘
+  ┌──────────▼──────────┐
+  │ Security Judge Node │
+  └──────────┬──────────┘
+        Is Safe?
+      /        \
+   (Yes)       (No)
+    │            │
+ ┌──▼──────┐  ┌──▼───────────┐
+ │ Execute │  │ Cancel Query │
+ └──┬──────┘  └──────────────┘
+    │
+ ┌──▼────────────┐
+ │ Format Answer │
+ └───────────────┘
+```
+
+---
+
+## 🛠️ Tech Stack
+
+- **Orchestration:** [LangGraph](https://github.com/langchain-ai/langgraph), [LangChain](https://github.com/langchain-ai/langchain)
+- **Models:** Groq API (`openai/gpt-oss-120b`, `qwen/qwen3.8-27b`)
+- **Database:** PostgreSQL via `psycopg2`
+- **Data Transformation & Processing:** Pandas, PyArrow (Parquet)
+- **Validation & Schemas:** Pydantic v2
+- **Environment Management:** Python `dotenv`
+
+
+---
+
+## 🔒 Security & Guardrails
+
+The **SQL Security Judge** prevents unauthorized database modifications. Any generated query is inspected for unsafe keywords before execution:
+
+- **Forbidden Statements:** `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `TRUNCATE`, `CREATE`, etc.
+- **Action on Violation:** If flagged, the query execution step is bypassed, and a detailed explanation is returned to the user without touching the database.
+
+---
+
