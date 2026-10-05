@@ -49,7 +49,7 @@ def transform_load_tool(input_file_path:str , output_folder:str, output_format:s
     
     obj = ETLTools()
     top_3_rows = obj.transform_load_context(input_file_path)
-    llm = pick_llm("medium")
+    llm = pick_llm("low")
     prompt = f"""
             You are a Python Data Analyst who uses Pandas to analyze data. 
             You need to provide only the Pandas Code that will help to perform the right ETL operations on the data stored in the file : {input_file_path}
@@ -76,44 +76,55 @@ def transform_load_tool(input_file_path:str , output_folder:str, output_format:s
 
 tools = [extract_load_tool , transform_load_tool]
 
-llm = pick_llm("medium")
+llm = pick_llm("low")
 llm_bind = llm.bind_tools(tools=tools)
 
 # nodes
 
-def llm_node(state:ETLAgentSchema)->ETLAgentSchema:
-    
+def llm_node(state:ETLAgentSchema):
+
     messages = state.messages
-    
+
     prompt = f"""
             You are a Python Data Analyst who has access to tools that can extract and load, 
             transform and load data. You will be provided with a user's question 
             and you would need to perform the right ETL operations as per the user's question. 
-            If the operation is performed then inform the user and end the conversation.
+            If the operation is performed then inform the user and end the coversation.
             Here's the chat history: {messages}\n
-        """
-    
+    """
+
     final_answer = llm_bind.invoke(prompt)
 
     state.messages = messages + [final_answer]
-    
+
     return state
 
 
+def tool_node(state:ETLAgentSchema):
+    """
+    This node is responsible for invoking the appropriate tool based on the user's question and the context provided by the LLM.
+    """
 
-def tool_node(state: ETLAgentSchema):
-    
-    tool_results = []
-    
-    tools_by_name = {tool.name : tool for tool in tools}
-    
+    tools_results = []
+
+    tools_by_name = {tool.name: tool for tool in tools}
+
     tool_calls = state.messages[-1].tool_calls
 
     for tool_call in tool_calls:
-        
+
         tool = tools_by_name[tool_call['name']]
         observation = tool.invoke(tool_call['args'])
-        tool_results.append(ToolMessage(content=observation , tool_call_id=tool_call['id']))
-    state.messages += tool_results
-    
-    return state
+
+        tools_results.append(ToolMessage(content=observation, tool_call_id = tool_call['id']))
+
+    state.messages = state.messages + tools_results
+
+    return state   
+
+
+# if __name__ == "__main__":
+#     llm_bind = pick_llm("medium").bind_tools(tools)
+#     print(llm_bind.invoke("I want to extract the data from the \
+#         API endpoint'https://pokeapi.co/api/v2/pokemon' and save\
+#             it to 'data/extracted' folder in the csv format"))
