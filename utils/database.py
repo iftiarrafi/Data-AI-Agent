@@ -74,7 +74,7 @@ db_config = {
 }
 obj = DatabaseUtil(db_config)
 
-result = obj.schema_details("public")
+# result = obj.schema_details("public")
 
-with open("test_schema_details.txt" , "w") as f:
-    f.write(result)
+# with open("test_schema_details.txt" , "w") as f:
+#     f.write(result)
