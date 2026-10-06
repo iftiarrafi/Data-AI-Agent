@@ -1,9 +1,5 @@
-from pydantic import BaseModel, Field
-from typing import Annotated, Literal
-from operator import add
 import os
 import sys
-from IPython.display import Image
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -17,11 +13,11 @@ from agents.sql_analyst import (
     represent_final_answer,
     is_safe_sql_edge
 )
-from models.schema import AgentSchema, JudgeSchema
+from models.schema import SQLAgentState
 from langgraph.graph import StateGraph, START, END
 
 
-graph = StateGraph(AgentSchema)
+graph = StateGraph(SQLAgentState)
 
 
 graph.add_node("curate_question", curate_question)
@@ -52,29 +48,3 @@ graph.add_edge("represent_final_answer", END)
 graph.add_edge("canceled_sql", END)
 
 sql_analyst = graph.compile()
-
-
-# if __name__ == "__main__":
-#     image = Image(sql_analyst.get_graph().draw_mermaid_png())
-#     with open("sql_analyst_graph.png", "wb") as f:
-#         f.write(image.data)
-    
-#     input_schema = {
-#         "messages": [],
-#         "user_message": "How many tables do we have in the db?", 
-#         "curated_ques": "",
-#         "prompt_query_context": "",
-#         "generated_sql_query": "",
-#         "is_safe": "No",
-#         "comments": "",
-#         "sql_query_execution_result": "",
-#         "final_answer": ""
-#     }
-    
-#     response = sql_analyst.invoke(input_schema)
-    
-#     print(response.get('messages'))
-#     print("********************************")
-#     print(response.get('generated_sql_query'))
-#     print("********************************")
-#     print(response.get('sql_query_execution_result'))

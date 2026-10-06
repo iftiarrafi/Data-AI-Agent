@@ -35,7 +35,7 @@ def curate_question(state:SQLAgentState) -> dict :
         "- Preserve the user's original intent.\n"
         "- Do not add information or assumptions that are not present.\n"
         "- Do not answer the question.\n"
-        "- Return only the rewritten question.",
+        "- Return only the rewritten question."
         f"user question : {user_question}"
     )
     
@@ -121,7 +121,7 @@ def is_safe_sql(state: SQLAgentState) -> dict:
     'No'. Additionally, provide comments explaining your decision.
     Here's the SQL query to evaluate: {sql_query}"""
     
-    judge_res = llm.invoke([
+    judge_res = llm_judge.invoke([
         SystemMessage(content=prompt),
         HumanMessage(content=f"SQL query to evaluate : \n{sql_query}\n")
     ])
@@ -208,7 +208,7 @@ def represent_final_answer(state: SQLAgentState)->dict:
     response = llm.invoke([
         SystemMessage(content=prompt),
         HumanMessage(content=user_payload)
-    ]).content
+    ])
     
     final_text = response.content.strip()
     
