@@ -34,7 +34,7 @@ class ETLTools:
             
             format = format.lower().strip().lstrip(".")
             
-            filename = os.path.join(output_folder, f"extracted_data.{format}")
+            filename = os.path.join(target_folder, f"extracted_data.{format}")
             
             if isinstance(data , dict):
                 if "results" in data and isinstance(data["results"], list):
