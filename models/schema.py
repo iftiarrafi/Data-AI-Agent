@@ -38,11 +38,11 @@ class ETLAgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
 
 
+class DataAgentState(TypedDict):
+    messages : Annotated[Sequence[BaseMessage],add_messages]
+    route_response : Optional[Literal["sql" , "etl"]]
+
 class RouterSchema(BaseModel):
     answer: Literal["sql","etl"] = Field(..., description="Indicates whether the user's question is related to SQL or ETL operations")
     comments: str = Field(default="", description="Additional comments or feedback regarding the classification of the user's question")
 
-
-class DataAgentState(TypedDict):
-    messages : Annotated[Sequence[BaseMessage],add_messages]
-    route_response : Optional[Literal["sql" , "etl"]]
