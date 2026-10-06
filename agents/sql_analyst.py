@@ -2,106 +2,112 @@ import os
 import sys
 sys.path.append(os.path.abspath( os.path.join(os.path.dirname(__file__) , '..')))
 
+from utils.database import get_default_db_config
+
+from typing import Literal
 from utils.llm_pick import pick_llm
-from models.schema import AgentSchema , JudgeSchema
+from models.schema import SQLAgentState , JudgeSchema
 from utils.database import DatabaseUtil
 from langchain_core.messages import HumanMessage , AIMessage, SystemMessage, ToolMessage
 
+def extract_user_query(state:SQLAgentState):
+    """Helper to extract user query string from user_message or the messages list."""
+    if state.get("user_message"):
+        return state["user_message"]
+    messages = state.get("messages" , [])
+    if messages:
+        last = messages[-1]
+        return last.content if hasattr(last ,"content") else str(last)
+    return ""
 # ------------- Agent Functions -------------
 
-def curate_question(state:AgentSchema) -> AgentSchema :
-    
-    user_question = state.user_message
-    
+def curate_question(state:SQLAgentState) -> dict :
+    """
+    Curates and refines the user's question for precise SQL generation.
+    """
+    user_question = extract_user_query(state)
     llm = pick_llm("low")
     
-    prompt = f"""
-        Rewrite the user's question into a clear, precise question suitable for
-        generating a PostgreSQL query.
-
-        Rules:
-        - Preserve the user's original intent.
-        - Do not add information or assumptions that are not present.
-        - Do not answer the question.
-        - Return only the rewritten question.
-
-        User question:
-        {user_question}
-        """
+    system_prompt = (
+        "Rewrite the user's question into a clear, precise question suitable for "
+        "generating a PostgreSQL query.\n"
+        "Rules:\n"
+        "- Preserve the user's original intent.\n"
+        "- Do not add information or assumptions that are not present.\n"
+        "- Do not answer the question.\n"
+        "- Return only the rewritten question."
+        f"user question : {user_question}"
+    )
     
-    response = llm.invoke(prompt)
+    response = llm.invoke([
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=user_question)
+    ])
     
-    state.curated_ques = response.content
+    curated = response.content.strip()
     
-    state.messages += [HumanMessage(content=f"{response.content}")]
-    
-    return state
-
-
-def prompt_query_context(state: AgentSchema) -> AgentSchema:
-    curate_question = state.curated_ques
-    
-    db_config = {
-    "host": os.getenv("DB_HOST", "localhost"),
-    "port": int(os.getenv("DB_PORT", 5432)),
-    "database": os.getenv("DB_NAME", "data-agent"),
-    "user": os.getenv("DB_USER", "postgres"),
-    "password": os.getenv("DB_PASSWORD", ""),
+    modified_dic = {
+        "user_message":user_question,
+        "curated_ques": curated
     }
+    return modified_dic
+
+
+def prompt_query_context(state: SQLAgentState) -> dict:
+    """
+    Retrieves PostgreSQL schema metadata and formats the prompt context for SQL generation.
+    """
+    curate_question = state.get("curated_ques") or extract_user_query(state)
+    
+    db_config = get_default_db_config()
     
     obj = DatabaseUtil(db_config=db_config)
     
     schema_info = obj.schema_details("public")
-    
-    prompt = f"""
-    You are a SQL analyst agent. Your task is to convert the user's natural language 
-    query into Postgres SQL query that can be executed on the database. You are provided 
-    with the user's original query and the schema details of the database, including
-    table names, column names, data types, and sample data for each table so that 
-    you can understand the structure of the database and generate an accurate SQL query.
-    Unless user explicitly asks for specific number of rows, always limit the output to 10 rows.
-    
-    Return ONLY the raw SQL query.
 
-    Do NOT wrap the query in:
-    - ```sql
-    - ```
-    - Markdown
-    - quotes
-    - explanations
-    - comments
+    return {
+        "prompt_query_context": f"user query:\n{curate_question}\n\n database schema details:\n{schema_info}",
 
-    The first character of your response must be the beginning of the SQL query.
-    The last character must be the end of the SQL query.
-    
-    User's Original Query: {curate_question}
-
-    Database Schema Details:
-    {schema_info}
-    
-    """    
-    state.prompt_query_context = prompt
-    
-    return state
+    }
 
 
-def generate_sql(state: AgentSchema) ->AgentSchema:
+def generate_sql(state: SQLAgentState) -> dict:
+    """
+    Generates a PostgreSQL query using the curated question and schema context.
+    """
+    system_prompt = (
+        "You are an expert SQL analyst agent. Your task is to convert the user's natural language "
+        "query into an executable PostgreSQL query based on the schema.\n"
+        "Rules:\n"
+        "- Unless the user explicitly asks for a specific number of rows, always limit the output to 10 rows.\n"
+        "- Return ONLY the raw SQL query.\n"
+        "- Do NOT wrap the query in markdown (no ```sql or ```).\n"
+        "- Do NOT include any explanations, markdown formatting, or comments.\n"
+        "- The first character of your response must be the beginning of the SQL query.\n"
+        "- The last character must be the end of the SQL query."
+    )
     
-    prompt = state.prompt_query_context
+    context = state.get("prompt_query_context" , "")
     
     llm = pick_llm("medium")
     
-    result = llm.invoke(prompt).content
+    result = llm.invoke([
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=context)
+    ]).content
     
-    result = result.replace("```sql", "").replace("```", "").strip()
+    cleaned_sql = result.replace("```sql", "").replace("```", "").strip()
     
-    state.generated_sql_query=result
-    
-    return state
+    return {
+        "generated_sql_query": cleaned_sql
+    }
 
 
-def is_safe_sql(state: AgentSchema) -> AgentSchema:
-    sql_query = state.generated_sql_query
+def is_safe_sql(state: SQLAgentState) -> dict:
+    """
+    Evaluates SQL query safety via an LLM judge to prevent destructive or mutating operations.
+    """
+    sql_query = state.get("generated_sql_query" , "")
     
     llm = pick_llm("medium")
     llm_judge = llm.with_structured_output(JudgeSchema)
@@ -115,17 +121,27 @@ def is_safe_sql(state: AgentSchema) -> AgentSchema:
     'No'. Additionally, provide comments explaining your decision.
     Here's the SQL query to evaluate: {sql_query}"""
     
-    response = llm_judge.invoke(prompt).model_dump()
-    state.is_safe = response['answer']
-    state.comments = response['comments']
+    judge_res = llm_judge.invoke([
+        SystemMessage(content=prompt),
+        HumanMessage(content=f"SQL query to evaluate : \n{sql_query}\n")
+    ])
     
-    return state
+    answer = judge_res.answer
+    comments = judge_res.comments
+    
+    return {
+        "is_safe" :answer,
+        "comments":comments
+    }
 
 
-def is_safe_sql_edge(state: AgentSchema) ->AgentSchema:
-    is_safe = state.is_safe
+def is_safe_sql_edge(state: SQLAgentState) -> Literal["execute_sql_edge" , "canceled_sql_edge"]:
+    """
+    Conditional routing function based on judge safety evaluation.
+    """
+    is_safe = state.get("is_safe" , "No") 
     
-    if is_safe.lower() == "yes" :
+    if str(is_safe).strip().lower() == "yes" :
         return "execute_sql_edge"
     else:
         return "canceled_sql_edge"
@@ -133,47 +149,46 @@ def is_safe_sql_edge(state: AgentSchema) ->AgentSchema:
 
 
 # Executing the SQL (safe)
-def execute_sql(state: AgentSchema) -> AgentSchema :
+def execute_sql(state: SQLAgentState) -> dict :
     
-    sql_query = state.generated_sql_query
+    sql_query = state.get("generated_sql_query" , "")
 
-    db_config = {
-    "host": os.getenv("DB_HOST", "localhost"),
-    "port": int(os.getenv("DB_PORT", 5432)),
-    "database": os.getenv("DB_NAME", "data-agent"),
-    "user": os.getenv("DB_USER", "postgres"),
-    "password": os.getenv("DB_PASSWORD", ""),
-    }
+    db_config = get_default_db_config()
     
     obj = DatabaseUtil(db_config=db_config)
     result = obj.execute_query(sql_query)
     
-    print("SQL:", sql_query)
-    print("RESULT:", result)
-    print("RESULT TYPE:", type(result))
-
-    state.sql_query_execution_result = result
-    
-    return state
+    return {
+        "sql_query_execution_result" : str(result)
+    }
 
 
 # Cancelling SQL Query operation
 
-def canceled_sql(state: AgentSchema)-> AgentSchema:
+def canceled_sql(state: SQLAgentState)-> dict:
+    """
+    Handles queries blocked by the safety judge, producing a final AIMessage.
+    """
+    comments = state.get("comments" , "Query did not pass safety validation.\n")
     
-    comments = state.comments
-    
-    state.final_answer =f"The generated SQL query was deemed unsafe to execute. The reason provided by the judge is: {comments}. Therefore, the SQL query will not be executed."
-    state.messages = state.messages + [AIMessage(content=f"{state.final_answer}")]
-    
-    return state
+    final_answer = (
+        f"The generated SQL query was deemed unsafe to execute. "
+        f"Reason: {comments}. The query execution has been canceled."
+    )
+    return {
+        "final_answer" : final_answer,
+        "messages" : [AIMessage(content=final_answer)]
+    }
 
 
 
-def represent_final_answer(state: AgentSchema)->AgentSchema:
+def represent_final_answer(state: SQLAgentState)->dict:
+    """
+    Synthesizes the database query result into a natural, user-friendly AIMessage.
+    """
     
-    execution_result = state.sql_query_execution_result
-    curated_question = state.curated_ques
+    execution_result = state.get("sql_query_execution_result", "")
+    curated_question = state.get("curated_ques", "")
     
     prompt = f"""
     You are an SQL analyst agent. Your task is to provide a final answer to the user based on the
@@ -184,11 +199,20 @@ def represent_final_answer(state: AgentSchema)->AgentSchema:
     Here is the execution result: {execution_result} \n
     Here is the user's original question: {curated_question}
     """
+    user_payload = (
+        f"User's Question: {curated_question}\n\n"
+        f"Query Execution Result:\n{execution_result}"
+    )
     
     llm = pick_llm("low")
-    response = llm.invoke(prompt).content
+    response = llm.invoke([
+        SystemMessage(content=prompt),
+        HumanMessage(content=user_payload)
+    ])
     
-    state.final_answer = response
-    state.messages = state.messages + [AIMessage(content=f"{response}")]
+    final_text = response.content.strip()
     
-    return state
+    return {
+        "final_answer":final_text,
+        "messages" : [AIMessage(content=final_text)]
+    }

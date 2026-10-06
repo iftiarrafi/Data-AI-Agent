@@ -5,7 +5,7 @@ sys.path.append(os.path.abspath( os.path.join(os.path.dirname(__file__) , '..'))
 from graphs.sql_agent_graph import sql_analyst
 from graphs.etl_agent_graph import etl_analyst
 from utils.llm_pick import pick_llm
-from models.schema import AgentSchema , JudgeSchema , RouterSchema , DataAgentSchema
+from models.schema import SQLAgentState , JudgeSchema , RouterSchema , DataAgentState
 from utils.database import DatabaseUtil
 from langchain_core.messages import HumanMessage , AIMessage, SystemMessage, ToolMessage
 
@@ -14,50 +14,76 @@ llm = pick_llm("low")
 
 llm_router = llm.with_structured_output(RouterSchema)
 
+ROUTER_SYSTEM_PROMPT = (
+    "You are an expert request router in an enterprise Data AI assistant.\n"
+    "Classify the user's intent into either:\n"
+    "- 'sql': Queries requesting database information, table counts, schema queries, users, rides, payments, ratings, etc.\n"
+    "- 'etl': Tasks requesting data extraction from REST APIs, web scraping, data transformations with Pandas, or saving files (CSV, JSON, Parquet).\n"
+    "Classify accurately."
+)
 
-def router_node(state:DataAgentSchema):
+def router_node(state:DataAgentState) -> dict:
+    """
+    Evaluates the conversation history and classifies the request as either 'sql' or 'etl'.
+    """
+    messages = state.get("messages", [])
+    if not messages:
+        raise ValueError("DataAgentState must have at least one message.")
 
-    message = state.messages[-1].content
+    last_message = messages[-1]
+    
+    user_query = last_message.content if hasattr(last_message , "content") else str(last_message)
 
-    route_response_dict = llm_router.invoke(message).model_dump()
-
-    route_response = route_response_dict['answer']
-
-    state.route_response = route_response
-
-    return state
-
-def etl_node(state:DataAgentSchema):
-
-    message = state.messages[-1].content
-
-    response = etl_analyst.invoke(
-             {"messages":[HumanMessage(content=f"""
-            {message}
-    """)]}
-        ) 
-    state.messages = state.messages + [response]
-
-    return state
-
-def sql_node(state:DataAgentSchema):
-
-    message = state.messages[-1].content
-
-    input_schema = {
-        "messages": [],
-        "user_message": f"{message}",
-        "curated_ques": "",
-        "prompt_query_context": "",
-        "generated_sql_query": "",
-        "is_safe": "No",
-        "comments": "",
-        "sql_query_execution_result": "",
-        "final_answer": ""
+    router_res = llm_router.invoke([
+        SystemMessage(content=ROUTER_SYSTEM_PROMPT),
+        HumanMessage(content=user_query)
+    ])
+    
+    return {
+        "route_response": router_res.answer
     }
 
-    response = sql_analyst.invoke(input_schema)
+def etl_node(state:DataAgentState) -> dict:
+    """
+    Delegates the user's data extraction/transformation task to the ETL Analyst subgraph.
+    Returns the resulting final AIMessage to update the supervisor's message history.
+    """
 
-    state.messages = state.messages + [response.get('final_answer')]
+    messages = state.get("messages", [])
 
-    return state
+    etl_result = etl_analyst.invoke({"messages": messages})
+
+    etl_messages = etl_result.get("messages", [])
+    for msg in reversed(etl_messages):
+        if isinstance(msg, AIMessage) and msg.content and not getattr(msg, "tool_calls", None):
+            return {"messages": [msg]}
+
+    if etl_messages:
+        last = etl_messages[-1]
+        content = last.content if hasattr(last, "content") else str(last)
+        return {"messages": [AIMessage(content=content)]}
+
+    return {"messages": [AIMessage(content="ETL process completed.")]}
+
+def sql_node(state:DataAgentState) -> dict:
+    """
+    Delegates the user's database inquiry to the SQL Analyst subgraph.
+    Returns the resulting AIMessage to update the supervisor's message history.
+    """
+
+    messages = state.get("messages", [])
+    last_message = messages[-1]
+    user_query = last_message.content if hasattr(last_message, "content") else str(last_message)
+
+    sql_result = sql_analyst.invoke({
+        "messages":[HumanMessage(content=user_query)],
+        "user_message":user_query
+    })
+    
+    sql_messages = sql_result.get("messages", [])
+    for msg in reversed(sql_messages):
+        if isinstance(msg, AIMessage) and msg.content:
+            return {"messages": [msg]}
+
+    final_answer = sql_result.get("final_answer", "SQL analysis completed.")
+    return {"messages": [AIMessage(content=str(final_answer))]}
