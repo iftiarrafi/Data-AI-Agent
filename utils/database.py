@@ -3,6 +3,16 @@ import psycopg2
 from dotenv import load_dotenv
 load_dotenv()
 
+def get_default_db_config() -> dict:
+    db_config = {
+        "host": os.getenv("DB_HOST", "localhost"),
+        "port": int(os.getenv("DB_PORT", 5432)),
+        "database": os.getenv("DB_NAME", "data-agent"),
+        "user": os.getenv("DB_USER", "postgres"),
+        "password": os.getenv("DB_PASSWORD", ""),
+    }
+    return db_config
+
 class DatabaseUtil:
     def __init__(self , db_config):
         self.db_config = db_config
@@ -12,7 +22,11 @@ class DatabaseUtil:
             print(f"Error connecting to the database: {e}")
             self.connection = None
     
-    def schema_details(self , schema_name):
+    def schema_details(self , schema_name : str = "public"):
+        """
+        Inspects database schema and returns structured information including
+        tables, column types, and sample data.
+        """
         schema_info_context = ""
         connection = self.connection
         cursor = connection.cursor()
@@ -50,6 +64,9 @@ class DatabaseUtil:
         return schema_info_context
     
     def execute_query(self , query):
+        """
+        Executes a SQL query against the database and returns the result as a string.
+        """
         try:
             connection = self.connection
             cursor = connection.cursor()
@@ -65,14 +82,6 @@ class DatabaseUtil:
             if cursor : cursor.close()
             if connection : connection.close()
     
-db_config = {
-    "host": os.getenv("DB_HOST", "localhost"),
-    "port": int(os.getenv("DB_PORT", 5432)),
-    "database": os.getenv("DB_NAME", "data-agent"),
-    "user": os.getenv("DB_USER", "postgres"),
-    "password": os.getenv("DB_PASSWORD", ""),
-}
-obj = DatabaseUtil(db_config)
 
 # result = obj.schema_details("public")
 

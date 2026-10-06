@@ -3,7 +3,7 @@ from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 load_dotenv()
 
-def pick_llm(level:str):
+def pick_llm(level:str = "low"):
     """
     Picks the appropriate LLM based on the level of the question
 
@@ -12,12 +12,15 @@ def pick_llm(level:str):
     Returns:
         The LLM instances
     """
-    if level.lower() == "high" :
-        llm = ChatGroq(model="openai/gpt-oss-120b" ,api_key= os.getenv("GROQ_API_KEY") , temperature=0)
-    elif level.lower() == "medium" :
-        llm = ChatGroq(model="openai/gpt-oss-120b" ,api_key= os.getenv("GROQ_API_KEY") , temperature=0)
-    elif level.lower() == "low" :
-        llm = ChatGroq(model="qwen/qwen3.8-27b" ,api_key= os.getenv("GROQ_API_KEY") , temperature=0)
+    level = level.lower().strip()
+    api_key = os.getenv("GROQ_API_KEY")
+    
+    if level == "high" :
+        llm = ChatGroq(model="openai/gpt-oss-120b" ,api_key=api_key , temperature=0)
+    elif level == "medium" :
+        llm = ChatGroq(model="openai/gpt-oss-120b" ,api_key=api_key , temperature=0)
+    elif level== "low" :
+        llm = ChatGroq(model="qwen/qwen3.8-27b" ,api_key=api_key , temperature=0)
     else:
         raise ValueError(f"Unsupported level : {level}")
     

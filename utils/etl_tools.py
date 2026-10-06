@@ -22,19 +22,32 @@ class ETLTools:
             str: A message indicating the success or failure of the operation.
 
         """
-
-        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-        output_folder = os.path.join(project_root, output_folder)      
-
         try:
+            target_folder = output_folder
+            if not os.path.isabs(target_folder):
+                target_folder = os.path.abspath(os.path.join(project_root,target_folder)) 
+            os.makedirs(target_folder, exist_ok=True)
+            
             response = requests.get(url)
             response.raise_for_status()
             data  = response.json()
-
+            
+            format = format.lower().strip().lstrip(".")
+            
             filename = os.path.join(output_folder, f"extracted_data.{format}")
-            os.makedirs(output_folder, exist_ok=True)
+            
+            if isinstance(data , dict):
+                if "results" in data and isinstance(data["results"], list):
+                    items = data["results"]
+                else:
+                    items = data
+            elif isinstance(data , list):
+                items = data
+            else :
+                items = [data]
 
-            df = pd.json_normalize(data['results'])
+            df = pd.json_normalize(items)
+            
             if format == "csv":
                 df.to_csv(filename, index=False)
             elif format == "json":
@@ -61,20 +74,35 @@ class ETLTools:
         Returns:
             str: A message indicating the success or failure of the operation.
         """
+        try:
+            target_file = file_path
+            if not os.path.isabs(target_file):
+                abs_path = os.path.abspath(os.path.join(project_root,file_path))
+                if os.path.exists(abs_path):
+                    target_file = abs_path
+            if not os.path.exists(target_file):
+                return f"File does not exist : {file_path}"
+            file_extension = os.path.splitext(file_path)[1].lower()
+            
+            if file_extension == ".csv":
+                df = pd.read_csv(target_file)
+            elif file_extension == ".json":
+                df = pd.read_json(target_file, lines=True)
+            elif file_extension == ".parquet":
+                df = pd.read_parquet(target_file)
+            else:
+                return f"Unsupported file format: {file_extension}"
 
-        file_extension = os.path.splitext(file_path)[1].lower()
-        if file_extension == ".csv":
-            df = pd.read_csv(file_path)
-        elif file_extension == ".json":
-            df = pd.read_json(file_path, lines=True)
-        elif file_extension == ".parquet":
-            df = pd.read_parquet(file_path)
-        else:
-            return f"Unsupported file format: {file_extension}"
+            data = (
+                f"DataFrame shape : {df.shape}\n"
+                f"Columns : {list(df.columns)}\n"
+                f"Top 3 Rows :\n {df.head(3).to_string()}"
+            )
+            
+        except Exception as e:
+            return f"Error reading file context: {e}"
 
-        top_3_rows = str(df.head(3))
-
-        return top_3_rows
+        
 
 
     def execute_code(self,code:str):
