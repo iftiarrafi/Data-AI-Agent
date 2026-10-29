@@ -1,87 +1,119 @@
-#  Multi-Agent SQL Analyst & ETL Engine
+<div align="center">
 
-An intelligent, multi-agent architecture powered by **LangGraph**, **LangChain**, and **Groq LLMs**. The system routes user natural language queries between specialized sub-graphs to handle database querying (Text-to-SQL) and automated Data Engineering/ETL pipelines safely.
+# ⚡ Multi-Agent SQL Analyst & ETL Engine
 
----
+An autonomous, guardrailed multi-agent system powered by **LangGraph**, **LangChain**, **Groq LLMs**, and **Streamlit**. Seamlessly routes user intent between **PostgreSQL Text-to-SQL Analytics** and **Dynamic ETL Ingestion & Transformation Pipelines**.
 
-##  Key Features
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg?logo=python)](https://www.python.org/)
+[![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-orange.svg)](https://github.com/langchain-ai/langgraph)
+[![Groq](https://img.shields.io/badge/LLM-Groq%20API-green.svg)](https://groq.com/)
+[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-336791.svg?logo=postgresql)](https://www.postgresql.org/)
+[![Streamlit](https://img.shields.io/badge/Frontend-Streamlit-FF4B4B.svg?logo=streamlit)](https://streamlit.io/)
 
-- ** Smart Workflow Routing:** Automatically evaluates incoming requests using a structured router and dispatches them to either the SQL Analyst or ETL Agent graph.
-- ** Guardrailed Text-to-SQL Pipeline:**
-  - **Question Refinement:** Rephrases user prompts into clean, clear SQL requirements.
-  - **Dynamic Schema Inspection:** Automatically extracts tables, column definitions, data types, and sample rows from PostgreSQL schemas (`public`).
-  - **Security Judge Node:** Evaluates generated SQL queries against strict DDL/DML restrictions (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, etc.) before execution.
-  - **Result Synthesis:** Formats raw query execution tuples into friendly, executive summaries.
-- ** Autonomous ETL & Data Pipeline Engine:**
-  - **REST API Data Ingestion:** Extracts data from external API endpoints into structured `.csv`, `.json`, or `.parquet` formats.
-  - **Dynamic Code Generation & Execution:** Generates and runs Pandas transformation scripts in isolated scopes based on data context inspection.
+</div>
 
 ---
 
-##  System Architecture
+## 📸 User Interface Showcase
+
+| **Interactive Studio & Chat** | **Guardrailed SQL Pipeline Trace** |
+| :---: | :---: |
+| ![Studio Overview](images/ui_overview.png) | ![SQL Pipeline Trace](images/ui_sql_trace.png) |
+
+| **Natural Language SQL Analytics** | **SQL Security Guardrail in Action** |
+| :---: | :---: |
+| ![SQL Analytics](images/ui_sql_query.png) | ![Security Guardrail](images/ui_security_guardrail.png) |
+
+---
+
+## ⚡ Key Highlights
+
+- **🧠 Autonomous Request Routing:** Evaluates incoming queries with a supervisor router node and dispatches to the SQL Analyst or ETL Engine.
+- **🛡️ Guardrailed Text-to-SQL:**
+  - **Question Refinement:** Curates raw prompts into precise SQL requirements.
+  - **Dynamic Schema Inspection:** Ingests live table structures and sample rows from PostgreSQL.
+  - **Security Judge:** Inspects generated SQL for destructive keywords (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, etc.) before execution.
+  - **Executive Synthesis:** Formats query outputs into business-friendly summaries.
+- **🔄 Autonomous ETL Pipeline:**
+  - **REST API Data Ingestion:** Extracts data from external endpoints directly into `.csv`, `.json`, or `.parquet`.
+  - **Dynamic Code Execution:** Generates and executes isolated Pandas transformation scripts.
+- **🖥️ Full-Featured Studio:** Built-in table inspector, live connection monitor, workspace file explorer, and multi-agent topology visualizer.
+
+---
+
+## 🏗️ Architecture
 
 ```
                     ┌────────────────────────┐
-                    │   User Input Query     │
+                    │    User Natural Query  │
                     └───────────┬────────────┘
                                 │
                         ┌───────▼────────┐
                         │  Router Node   │
                         └───────┬────────┘
                                 │
-             ┌──────────────────┴──────────────────┐
-             │                                     │
-      [ Route: "sql" ]                      [ Route: "etl" ]
-             │                                     │
-    ┌────────▼─────────┐                  ┌────────▼────────┐
-    │ SQL Analyst Graph│                  │ ETL Analyst    │
-    └────────┬─────────┘                  │ Sub-Graph      │
-             │                            └────────┬────────┘
-  ┌──────────┼──────────┐                          │
-  │ Curate   │ Schema   │                  ┌───────▼────────┐
-  │ Query    │ Context  │                  │ LLM Tool-Call  │
-  └──────────┼──────────┘                  └───────┬────────┘
-             │                                     │
-  ┌──────────▼──────────┐                 ┌────────┴────────┐
-  │  SQL Generator      │                 │ API Extract /   │
-  └──────────┬──────────┘                 │ Pandas Code Exec│
-             │                            └─────────────────┘
-  ┌──────────▼──────────┐
-  │ Security Judge Node │
-  └──────────┬──────────┘
-        Is Safe?
-      /        \
-   (Yes)       (No)
-    │            │
- ┌──▼──────┐  ┌──▼───────────┐
- │ Execute │  │ Cancel Query │
- └──┬──────┘  └──────────────┘
-    │
- ┌──▼────────────┐
- │ Format Answer │
- └───────────────┘
+              ┌─────────────────┴─────────────────┐
+       [ Route: "sql" ]                    [ Route: "etl" ]
+              │                                   │
+     ┌────────▼────────┐                 ┌────────▼────────┐
+     │ SQL Analyst     │                 │ ETL Engine      │
+     │ ├─ Curate Query │                 │ ├─ API Extract  │
+     │ ├─ Schema Ctx   │                 │ └─ Pandas Exec  │
+     │ ├─ Generate SQL │                 └─────────────────┘
+     │ ├─ Security Judge
+     │ └─ Execute/Format
+     └─────────────────┘
 ```
 
 ---
 
-## 🛠️ Tech Stack
+## 🚀 Quickstart
 
-- **Orchestration:** [LangGraph](https://github.com/langchain-ai/langgraph), [LangChain](https://github.com/langchain-ai/langchain)
-- **Models:** Groq API (`openai/gpt-oss-120b`, `qwen/qwen3.8-27b`)
-- **Database:** PostgreSQL via `psycopg2`
-- **Data Transformation & Processing:** Pandas, PyArrow (Parquet)
-- **Validation & Schemas:** Pydantic v2
-- **Environment Management:** Python `dotenv`
+### 1. Configure Environment
 
+Create a `.env` file in the project root:
+
+```env
+GROQ_API_KEY=your_groq_api_key_here
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=data-agent
+DB_USER=postgres
+DB_PASSWORD=your_password
+```
+
+### 2. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Launch Studio
+
+```bash
+streamlit run app.py
+```
 
 ---
 
-## 🔒 Security & Guardrails
+## 📁 Project Structure
 
-The **SQL Security Judge** prevents unauthorized database modifications. Any generated query is inspected for unsafe keywords before execution:
-
-- **Forbidden Statements:** `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `TRUNCATE`, `CREATE`, etc.
-- **Action on Violation:** If flagged, the query execution step is bypassed, and a detailed explanation is returned to the user without touching the database.
+```
+├── agents/             # Core agent logic (Router, SQL Analyst, ETL Analyst)
+├── graphs/             # LangGraph state graphs and sub-graph compilations
+├── models/             # Pydantic schemas and LangGraph State definitions
+├── utils/              # Database utilities, ETL tools, and LLM selector
+├── data/               # Seed data, extracted files, and transformed outputs
+├── images/             # UI screenshots and architecture diagrams
+├── seed/               # Database initialization and seeding scripts
+├── app.py              # Streamlit interactive multi-agent studio application
+└── requirements.txt    # Project dependencies
+```
 
 ---
 
+## 🔒 Security Policy
+
+All generated SQL queries pass through an automated LLM Security Judge before reaching the database:
+- **Forbidden:** Any destructive statement modifying schemas or records (`DROP`, `TRUNCATE`, `ALTER`, `DELETE`, `UPDATE`, `INSERT`, `CREATE`).
+- **Enforcement:** If flagged, database execution is bypassed immediately, returning a detailed security violation report to the user.

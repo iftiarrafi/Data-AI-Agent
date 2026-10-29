@@ -54,16 +54,28 @@ def etl_node(state:DataAgentState) -> dict:
     etl_result = etl_analyst.invoke({"messages": messages})
 
     etl_messages = etl_result.get("messages", [])
+    
+    tool_info = []
+    for m in etl_messages:
+        if getattr(m, "tool_calls", None):
+            for tc in m.tool_calls:
+                tool_info.append({"type": "call", "name": tc.get("name"), "args": tc.get("args")})
+        elif isinstance(m, ToolMessage):
+            tool_info.append({"type": "result", "content": m.content})
+
     for msg in reversed(etl_messages):
         if isinstance(msg, AIMessage) and msg.content and not getattr(msg, "tool_calls", None):
+            msg.additional_kwargs["route"] = "etl"
+            msg.additional_kwargs["tool_info"] = tool_info
             return {"messages": [msg]}
 
     if etl_messages:
         last = etl_messages[-1]
         content = last.content if hasattr(last, "content") else str(last)
-        return {"messages": [AIMessage(content=content)]}
+        out_msg = AIMessage(content=content, additional_kwargs={"route": "etl", "tool_info": tool_info})
+        return {"messages": [out_msg]}
 
-    return {"messages": [AIMessage(content="ETL process completed.")]}
+    return {"messages": [AIMessage(content="ETL process completed.", additional_kwargs={"route": "etl", "tool_info": tool_info})]}
 
 def sql_node(state:DataAgentState) -> dict:
     """
@@ -80,10 +92,20 @@ def sql_node(state:DataAgentState) -> dict:
         "user_message":user_query
     })
     
+    extra = {
+        "route": "sql",
+        "curated_ques": sql_result.get("curated_ques"),
+        "generated_sql_query": sql_result.get("generated_sql_query"),
+        "is_safe": sql_result.get("is_safe"),
+        "comments": sql_result.get("comments"),
+        "sql_query_execution_result": sql_result.get("sql_query_execution_result"),
+    }
+    
     sql_messages = sql_result.get("messages", [])
     for msg in reversed(sql_messages):
         if isinstance(msg, AIMessage) and msg.content:
+            msg.additional_kwargs.update(extra)
             return {"messages": [msg]}
 
     final_answer = sql_result.get("final_answer", "SQL analysis completed.")
-    return {"messages": [AIMessage(content=str(final_answer))]}
+    return {"messages": [AIMessage(content=str(final_answer), additional_kwargs=extra)]}

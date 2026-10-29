@@ -98,6 +98,7 @@ class ETLTools:
                 f"Columns : {list(df.columns)}\n"
                 f"Top 3 Rows :\n {df.head(3).to_string()}"
             )
+            return data
             
         except Exception as e:
             return f"Error reading file context: {e}"

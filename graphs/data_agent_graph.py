@@ -6,8 +6,9 @@ from agents.data_analyst import router_node , sql_node , etl_node
 from models.schema import DataAgentState
 from langgraph.graph import StateGraph, START, END
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langgraph.checkpoint.memory import InMemorySaver
 
-
+checkpoint = InMemorySaver()
 
 data_agent_graph = StateGraph(DataAgentState)
 
@@ -37,5 +38,5 @@ data_agent_graph.add_edge("sql_node", END)
 data_agent_graph.add_edge("etl_node", END)
 
 
-data_agent = data_agent_graph.compile()
+data_agent = data_agent_graph.compile(checkpointer=checkpoint)
 
