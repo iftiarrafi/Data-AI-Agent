@@ -43,28 +43,11 @@ An autonomous, guardrailed multi-agent system powered by **LangGraph**, **LangCh
 
 ## 🏗️ Architecture
 
-```
-                    ┌────────────────────────┐
-                    │    User Natural Query  │
-                    └───────────┬────────────┘
-                                │
-                        ┌───────▼────────┐
-                        │  Router Node   │
-                        └───────┬────────┘
-                                │
-              ┌─────────────────┴─────────────────┐
-       [ Route: "sql" ]                    [ Route: "etl" ]
-              │                                   │
-     ┌────────▼────────┐                 ┌────────▼────────┐
-     │ SQL Analyst     │                 │ ETL Engine      │
-     │ ├─ Curate Query │                 │ ├─ API Extract  │
-     │ ├─ Schema Ctx   │                 │ └─ Pandas Exec  │
-     │ ├─ Generate SQL │                 └─────────────────┘
-     │ ├─ Security Judge
-     │ └─ Execute/Format
-     └─────────────────┘
-```
+### System Architecture
 
+<p align="center">
+  <img src="images/diagram.png" alt="Data AI agent architecture" width="100%" />
+</p>
 ---
 
 ## 🚀 Quickstart

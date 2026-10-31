@@ -21,7 +21,7 @@ from utils.database import DatabaseUtil, get_default_db_config
 # ==============================================================================
 st.set_page_config(
     page_title="Multi-Agent SQL & ETL Studio",
-    page_icon="⚡",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -264,19 +264,19 @@ def render_assistant_metadata(extra):
 # 4. SIDEBAR - CONTROLS, DB EXPLORER, ARCHITECTURE
 # ==============================================================================
 with st.sidebar:
-    st.markdown("### ⚡ Multi-Agent Studio")
+    st.markdown("### Multi-Agent Studio")
     st.caption("Autonomous SQL Analyst & ETL Pipeline")
     
     st.markdown("---")
 
     # 1. Routing Mode Selection
-    st.markdown("#### 🧭 Execution Mode")
+    st.markdown("#### Execution Mode")
     agent_mode = st.radio(
         "Select workflow:",
         options=[
-            "🔀 Smart Router (Multi-Agent)",
-            "🗄️ SQL Analyst (Direct)",
-            "⚙️ ETL Engine (Direct)"
+            " Smart Router (Multi-Agent)",
+            " SQL Analyst (Direct)",
+            " ETL Engine (Direct)"
         ],
         help="Smart Router automatically classifies intent. Direct modes execute specialized sub-graphs directly."
     )
@@ -284,15 +284,15 @@ with st.sidebar:
     st.markdown("---")
 
     # 2. Database Connection & Schema Health
-    st.markdown("#### 🗄️ PostgreSQL Database")
+    st.markdown("####  PostgreSQL Database")
     db_ok, db_status, table_counts = check_db_health()
     db_cfg = get_default_db_config()
 
     if db_ok:
-        st.success(f"🟢 **Connected to `{db_cfg['database']}`**")
+        st.success(f" **Connected to `{db_cfg['database']}`**")
         st.caption(f"Host: `{db_cfg['host']}:{db_cfg['port']}` | Schema: `public`")
 
-        with st.expander("📊 View Database Tables & Counts", expanded=False):
+        with st.expander(" View Database Tables & Counts", expanded=False):
             col_a, col_b = st.columns(2)
             items = list(table_counts.items())
             for i, (tbl, cnt) in enumerate(items):
@@ -329,12 +329,12 @@ with st.sidebar:
     extracted_files = os.listdir(extract_dir) if os.path.exists(extract_dir) else []
     transformed_files = os.listdir(transform_dir) if os.path.exists(transform_dir) else []
 
-    with st.expander("📦 Extracted & Transformed Files", expanded=False):
+    with st.expander(" Extracted & Transformed Files", expanded=False):
         st.markdown("**Extracted Data (`data/extract`):**")
         if extracted_files:
             for f in extracted_files:
                 fpath = os.path.join(extract_dir, f)
-                st.text(f"📄 {f} ({os.path.getsize(fpath)} bytes)")
+                st.text(f" {f} ({os.path.getsize(fpath)} bytes)")
         else:
             st.caption("No files yet in `data/extract/`")
 
@@ -342,14 +342,14 @@ with st.sidebar:
         if transformed_files:
             for f in transformed_files:
                 fpath = os.path.join(transform_dir, f)
-                st.text(f"📄 {f} ({os.path.getsize(fpath)} bytes)")
+                st.text(f" {f} ({os.path.getsize(fpath)} bytes)")
         else:
             st.caption("No files yet in `data/transform/`")
 
     st.markdown("---")
 
     # 4. Multi-Agent Architecture Diagrams
-    with st.expander("🗺️ Multi-Agent Architecture", expanded=False):
+    with st.expander(" Multi-Agent Architecture", expanded=False):
         st.markdown("#### System Topology")
         agent_img = os.path.join(PROJECT_ROOT, "data_agent_graph.png")
         sql_img = os.path.join(PROJECT_ROOT, "images", "sql_analyst_graph.png")
@@ -368,15 +368,15 @@ with st.sidebar:
     st.markdown("---")
 
     # 5. Session Management & Reset
-    st.caption(f"🧵 Session Thread: `{st.session_state['thread_id']}`")
+    st.caption(f" Session Thread: `{st.session_state['thread_id']}`")
     col_reset1, col_reset2 = st.columns(2)
     with col_reset1:
-        if st.button("🔄 New Chat", use_container_width=True):
+        if st.button(" New Chat", use_container_width=True):
             st.session_state["chat_messages"] = []
             st.session_state["thread_id"] = str(uuid.uuid4())[:8]
             st.rerun()
     with col_reset2:
-        if st.button("🧹 Clear", use_container_width=True):
+        if st.button(" Clear", use_container_width=True):
             st.session_state["chat_messages"] = []
             st.rerun()
 
@@ -387,7 +387,7 @@ with st.sidebar:
 st.markdown("""
 <div class="hero-container">
     <div class="hero-title">
-        <span>⚡ Multi-Agent SQL Analyst & ETL Engine</span>
+        <span> Multi-Agent SQL Analyst & ETL Engine</span>
     </div>
     <div class="hero-subtitle">
         Autonomous enterprise assistant orchestrating <b>Text-to-SQL with Security Guardrails</b> 
@@ -459,11 +459,11 @@ if user_input:
         }
 
         try:
-            with st.status("🧠 Agents collaborating on your request...", expanded=True) as status_box:
+            with st.status(" Agents collaborating on your request...", expanded=True) as status_box:
                 
                 # --- MODE A: SMART ROUTER (MULTI-AGENT GRAPH) ---
                 if "Smart Router" in agent_mode:
-                    st.write("🔀 Step 1: Supervisor Router analyzing request intent...")
+                    st.write(" Step 1: Supervisor Router analyzing request intent...")
                     
                     # Run supervisor graph
                     result = data_agent.invoke(
@@ -480,24 +480,24 @@ if user_input:
                     route_picked = extra_data.get("route", result.get("route_response", "unknown"))
 
                     if route_picked == "sql":
-                        st.write("🗄️ Step 2: Routed to **SQL Analyst Pipeline**")
+                        st.write(" Step 2: Routed to **SQL Analyst Pipeline**")
                         if extra_data.get("is_safe") == "No":
                             st.write("🛡️ Step 3: Security Judge flagged query as UNSAFE. Execution cancelled.")
                         else:
                             st.write("🛡️ Step 3: Query verified safe. Executed against PostgreSQL.")
-                        st.write("📝 Step 4: Synthesized executive summary report.")
+                        st.write(" Step 4: Synthesized executive summary report.")
                     elif route_picked == "etl":
-                        st.write("⚙️ Step 2: Routed to **ETL Pipeline Engine**")
-                        st.write("🔧 Step 3: Executed data extraction / transformation tool.")
-                        st.write("📝 Step 4: Formatted operation confirmation.")
+                        st.write(" Step 2: Routed to **ETL Pipeline Engine**")
+                        st.write(" Step 3: Executed data extraction / transformation tool.")
+                        st.write(" Step 4: Formatted operation confirmation.")
                         
                     status_box.update(label="✅ Request completed successfully!", state="complete", expanded=False)
 
                 # --- MODE B: DEDICATED SQL ANALYST SUBGRAPH ---
                 elif "SQL Analyst" in agent_mode:
-                    st.write("🔍 Step 1: Refining user question for SQL generation...")
-                    st.write("📋 Step 2: Inspecting live PostgreSQL schema details...")
-                    st.write("🛡️ Step 3: Generating SQL & Evaluating with Security Judge...")
+                    st.write(" Step 1: Refining user question for SQL generation...")
+                    st.write(" Step 2: Inspecting live PostgreSQL schema details...")
+                    st.write(" Step 3: Generating SQL & Evaluating with Security Judge...")
                     
                     sql_res = sql_analyst.invoke({
                         "messages": [user_msg],
@@ -513,12 +513,12 @@ if user_input:
                         "comments": sql_res.get("comments"),
                         "sql_query_execution_result": sql_res.get("sql_query_execution_result")
                     }
-                    status_box.update(label="✅ SQL Analysis complete!", state="complete", expanded=False)
+                    status_box.update(label=" SQL Analysis complete!", state="complete", expanded=False)
 
                 # --- MODE C: DEDICATED ETL PIPELINE ENGINE SUBGRAPH ---
                 elif "ETL Engine" in agent_mode:
-                    st.write("⚡ Step 1: Inspecting ETL requirements and tool availability...")
-                    st.write("🔧 Step 2: Executing API extraction or Pandas transformation script...")
+                    st.write(" Step 1: Inspecting ETL requirements and tool availability...")
+                    st.write(" Step 2: Executing API extraction or Pandas transformation script...")
                     
                     etl_res = etl_analyst.invoke({"messages": [user_msg]})
                     etl_msgs = etl_res.get("messages", [])
@@ -536,7 +536,7 @@ if user_input:
                         "route": "etl",
                         "tool_info": tool_info
                     }
-                    status_box.update(label="✅ ETL execution complete!", state="complete", expanded=False)
+                    status_box.update(label=" ETL execution complete!", state="complete", expanded=False)
 
             # Render assistant message content & rich trace
             render_assistant_metadata(extra_data)
@@ -547,5 +547,5 @@ if user_input:
             st.session_state["chat_messages"].append(assistant_msg)
 
         except Exception as e:
-            st.error(f"❌ An error occurred during execution: {str(e)}")
+            st.error(f" An error occurred during execution: {str(e)}")
             st.info("Tip: If this is an API rate limit or database connection issue, check your `.env` configuration.")
